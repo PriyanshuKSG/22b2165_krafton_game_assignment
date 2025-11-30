@@ -94,8 +94,6 @@ class GameServer:
         }
         serialized = json.dumps(state)
 
-        # Network Simulation: Outbound Latency
-        # We spawn a task to send this specific snapshot after a delay
         asyncio.create_task(self.delayed_broadcast(serialized))
 
     async def delayed_broadcast(self, message):
@@ -108,8 +106,6 @@ class GameServer:
             )
 
     async def handle_client_message(self, websocket, message):
-        # Network Simulation: Inbound Latency
-        # We wait 200ms before processing the input to simulate lag arriving at server
         await asyncio.sleep(ARTIFICIAL_LATENCY)
 
         try:
@@ -119,8 +115,7 @@ class GameServer:
             if not pid: return
 
             if data['type'] == 'input':
-                # Authoritative: We just store the intent. 
-                # The update loop applies physics.
+
                 self.players[pid]['input'] = data['direction']
                 
         except Exception as e:
@@ -142,9 +137,7 @@ class GameServer:
         
         print(f"Player {pid} connected.")
         
-        # Send initial ID assignment (Critical for client to know who they are)
-        # We do not lag this initial handshake for simplicity of connection setup, 
-        # but gameplay data is lagged.
+
         await websocket.send(json.dumps({"type": "init", "id": pid}))
 
     async def unregister(self, websocket):

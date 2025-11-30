@@ -23,11 +23,8 @@ class GameClient:
         self.my_id = None
         self.connected = False
         
-        # State Buffer for Interpolation
-        # List of snapshots: { "t": timestamp, "players": {...}, "coins": [...] }
         self.state_buffer = [] 
         
-        # Current input being sent
         self.current_input = None
         self.last_input_sent = None
 
@@ -41,25 +38,19 @@ class GameClient:
         """
         current_server_time = time.time()
         
-        # We render the game in the past relative to when we received data
         render_time = current_server_time - INTERPOLATION_OFFSET
         
-        # Prune old states
         while len(self.state_buffer) > 2 and self.state_buffer[1]['recv_time'] < render_time:
             self.state_buffer.pop(0)
 
         if len(self.state_buffer) < 2:
-            # Not enough data to interpolate, return latest or empty
             if self.state_buffer:
                 return self.state_buffer[-1]['players'], self.state_buffer[-1]['coins'], self.state_buffer[-1]['status']
             return {}, [], "CONNECTING"
 
-        # Find the two snapshots surrounding the render_time
         prev_state = self.state_buffer[0]
         next_state = self.state_buffer[1]
 
-        # Calculate interpolation factor (alpha) between 0.0 and 1.0
-        # Note: We use local receive times for smoother visual transitions if server clocks drift
         time_diff = next_state['recv_time'] - prev_state['recv_time']
         if time_diff <= 0: alpha = 1.0
         else: alpha = (render_time - prev_state['recv_time']) / time_diff
@@ -68,7 +59,6 @@ class GameClient:
 
         interpolated_players = {}
         
-        # Interpolate player positions
         for pid, p_next in next_state['players'].items():
             if pid in prev_state['players']:
                 p_prev = prev_state['players'][pid]
@@ -123,7 +113,6 @@ class GameClient:
         async with websockets.connect(SERVER_URI) as websocket:
             self.connected = True
             
-            # Setup separate receive task
             receive_task = asyncio.create_task(self.receive_handler(websocket))
             
             try:
@@ -140,9 +129,6 @@ class GameClient:
                     elif keys[pygame.K_a] or keys[pygame.K_LEFT]: direction = "LEFT"
                     elif keys[pygame.K_d] or keys[pygame.K_RIGHT]: direction = "RIGHT"
 
-                    # Only send if changed to reduce bandwidth, 
-                    # but for this specific "input state" test, we send continuously if pressed
-                    # or stop if not.
                     if direction != self.current_input:
                         self.current_input = direction
                         msg = {"type": "input", "direction": direction}
